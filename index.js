@@ -1,6 +1,9 @@
 import express from 'express'; //import express from 'express' → como un using en C#, importa la librería
 import pool from './db.js';
 import cors from 'cors';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { verificarToken } from './middleware/auth.js';
 
 const app = express(); //const app = express() → creás la instancia de tu aplicación/servidor (pensalo como instanciar tu clase Startup en ASP.NET)
 app.use(cors());
@@ -85,7 +88,7 @@ app.get('/test-db', async (req, res) => {
   }
 });
 
-app.get('/mi-lista', async (req, res) => {
+app.get('/mi-lista', verificarToken, async (req, res) => {
   try {
     const resultado = await pool.query(`
       SELECT 
@@ -101,8 +104,9 @@ app.get('/mi-lista', async (req, res) => {
         animes.sinopsis
       FROM mi_lista
       JOIN animes ON mi_lista.anime_id = animes.id
+      WHERE mi_lista.usuario_id = $1
       ORDER BY mi_lista.fecha_actualizacion DESC
-    `);
+    `, [req.usuario.id]);
 
     res.json(resultado.rows);
   } catch (error) {
@@ -111,7 +115,7 @@ app.get('/mi-lista', async (req, res) => {
   }
 });
 
-app.post('/mi-lista', async (req, res) => {
+app.post('/mi-lista', verificarToken, async (req, res) => {
   const { anilist_id, titulo, imagen, episodios, sinopsis, estado } = req.body;
 
   if (!anilist_id || !titulo) {
@@ -132,10 +136,10 @@ app.post('/mi-lista', async (req, res) => {
 
     // 2. Lo agregamos a "mi_lista"
     const listaResult = await pool.query(
-      `INSERT INTO mi_lista (anime_id, estado)
-       VALUES ($1, $2)
+      `INSERT INTO mi_lista (anime_id, estado, usuario_id)
+       VALUES ($1, $2, $3)
        RETURNING *`,
-      [animeId, estado || 'plan_to_watch']
+      [animeId, estado || 'plan_to_watch', req.usuario.id]
     );
 
     res.status(201).json(listaResult.rows[0]);
@@ -149,7 +153,76 @@ app.post('/mi-lista', async (req, res) => {
   }
 });
 
-app.patch('/mi-lista/:id', async (req, res) => {
+app.post('/auth/registro', async (req, res) => {
+  const { nombre_usuario, email, password } = req.body;
+
+  if (!nombre_usuario || !email || !password) {
+    return res.status(400).json({ error: 'Faltan datos (nombre_usuario, email, password)' });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+  }
+
+  try {
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const resultado = await pool.query(
+      `INSERT INTO usuarios (nombre_usuario, email, password_hash)
+       VALUES ($1, $2, $3)
+       RETURNING id, nombre_usuario, email, fecha_registro`,
+      [nombre_usuario, email, passwordHash]
+    );
+
+    res.status(201).json(resultado.rows[0]);
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Ese usuario o email ya está registrado' });
+    }
+    console.error(error);
+    res.status(500).json({ error: 'Error al registrar usuario' });
+  }
+});
+
+
+app.post('/auth/login', async (req, res) => {
+  const { nombre_usuario, password } = req.body;
+
+  if (!nombre_usuario || !password) {
+    return res.status(400).json({ error: 'Faltan datos (nombre_usuario, password)' });
+  }
+
+  try {
+    const resultado = await pool.query(
+      `SELECT id, nombre_usuario, password_hash FROM usuarios WHERE nombre_usuario = $1`,
+      [nombre_usuario]
+    );
+
+    if (resultado.rows.length === 0) {
+      return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+    }
+
+    const usuario = resultado.rows[0];
+    const passwordValida = await bcrypt.compare(password, usuario.password_hash);
+
+    if (!passwordValida) {
+      return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+    }
+
+    const token = jwt.sign(
+      { id: usuario.id, nombre_usuario: usuario.nombre_usuario },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({ token, usuario: { id: usuario.id, nombre_usuario: usuario.nombre_usuario } });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al iniciar sesión' });
+  }
+});
+
+app.patch('/mi-lista/:id', verificarToken, async (req, res) => {
   const { id } = req.params;
   const { estado, episodio_actual, mi_rating } = req.body;
 
@@ -161,9 +234,9 @@ app.patch('/mi-lista/:id', async (req, res) => {
          episodio_actual = COALESCE($2, episodio_actual),
          mi_rating = COALESCE($3, mi_rating),
          fecha_actualizacion = NOW()
-       WHERE id = $4
+       WHERE id = $4 AND usuario_id = $5
        RETURNING *`,
-      [estado, episodio_actual, mi_rating, id]
+      [estado, episodio_actual, mi_rating, id, req.usuario.id]
     );
 
     if (resultado.rows.length === 0) {
@@ -178,13 +251,13 @@ app.patch('/mi-lista/:id', async (req, res) => {
 });
 
 
-app.delete('/mi-lista/:id', async (req, res) => {
+app.delete('/mi-lista/:id', verificarToken, async (req, res) => {
   const { id } = req.params;
 
   try {
     const resultado = await pool.query(
-      `DELETE FROM mi_lista WHERE id = $1 RETURNING *`,
-      [id]
+      `DELETE FROM mi_lista WHERE id = $1 AND usuario_id = $2 RETURNING *`,
+      [id, req.usuario.id]
     );
 
     if (resultado.rows.length === 0) {

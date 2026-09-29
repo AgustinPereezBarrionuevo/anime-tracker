@@ -1,0 +1,178 @@
+:root {
+  --navy: #2e51a2;
+  --navy-dark: #223e82;
+  --bg: #e8eaf0;
+  --card: #ffffff;
+  --border: #d7dce5;
+  --text: #2b2b2b;
+  --text-muted: #6b7280;
+
+  --c-viendo: #338543;
+  --c-pendiente: #747474;
+  --c-completado: #2e51a2;
+  --c-dropeado: #832f30;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.topbar {
+  background: var(--navy);
+  padding: 16px 24px;
+  margin-bottom: 24px;
+}
+
+.topbar h1 {
+  color: #fff;
+  margin: 0 0 12px 0;
+  font-size: 20px;
+}
+
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 24px 24px;
+}
+
+.buscador {
+  display: flex;
+  gap: 8px;
+  max-width: 500px;
+}
+
+.buscador input {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 3px;
+  border: none;
+  font-size: 14px;
+}
+
+button {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 3px;
+  background: var(--navy);
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+button:hover {
+  background: var(--navy-dark);
+}
+
+button:disabled {
+  background: #b0b5bd;
+  cursor: not-allowed;
+}
+
+h2 {
+  font-size: 15px;
+  color: var(--navy);
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 6px;
+  margin-top: 28px;
+}
+
+.seccion {
+  margin-bottom: 24px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px;
+  border-left: none;
+}
+
+.card img {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 3px;
+  display: block;
+}
+
+.card h3 {
+  font-size: 13px;
+  margin: 8px 0 4px;
+  line-height: 1.3;
+  height: 34px;
+  overflow: hidden;
+}
+
+.badge-estado {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 6px;
+}
+
+.badge-viendo { background: var(--c-viendo); }
+.badge-pendiente { background: var(--c-pendiente); }
+.badge-completado { background: var(--c-completado); }
+.badge-dropeado { background: var(--c-dropeado); }
+
+.card select {
+  width: 100%;
+  padding: 5px;
+  margin-top: 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.episodios {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+
+.episodios span {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.episodios button {
+  padding: 3px 9px;
+  flex-shrink: 0;
+}
+
+.input-episodio {
+  width: 44px;
+  min-width: 0;
+  padding: 3px;
+  text-align: center;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}
+
+.card button {
+  margin-top: 4px;
+  width: 100%;
+}

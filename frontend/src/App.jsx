@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Auth from './Auth';
 import './App.css';
 
 const API_URL = 'http://localhost:3000';
@@ -11,6 +12,11 @@ const ESTADOS = [
 ];
 
 function App() {
+  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [usuario, setUsuario] = useState(
+    JSON.parse(localStorage.getItem('usuario') || 'null')
+  );
+
   const [lista, setLista] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -18,9 +24,32 @@ function App() {
   const [resultados, setResultados] = useState([]);
   const [buscando, setBuscando] = useState(false);
 
+  function manejarLogin(nuevoToken, nuevoUsuario) {
+    localStorage.setItem('token', nuevoToken);
+    localStorage.setItem('usuario', JSON.stringify(nuevoUsuario));
+    setToken(nuevoToken);
+    setUsuario(nuevoUsuario);
+  }
+
+  function cerrarSesion() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('usuario');
+    setToken(null);
+    setUsuario(null);
+    setLista([]);
+  }
+
   async function cargarLista() {
     try {
-      const respuesta = await fetch(`${API_URL}/mi-lista`);
+      const respuesta = await fetch(`${API_URL}/mi-lista`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (respuesta.status === 401) {
+        cerrarSesion();
+        return;
+      }
+
       if (!respuesta.ok) throw new Error('Error al traer la lista');
       const data = await respuesta.json();
       setLista(data);
@@ -32,8 +61,8 @@ function App() {
   }
 
   useEffect(() => {
-    cargarLista();
-  }, []);
+    if (token) cargarLista();
+  }, [token]);
 
   async function buscar() {
     if (!busqueda.trim()) return;
@@ -55,7 +84,10 @@ function App() {
   async function agregar(anime) {
     const respuesta = await fetch(`${API_URL}/mi-lista`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ ...anime, estado: 'plan_to_watch' }),
     });
     if (!respuesta.ok) {
@@ -70,35 +102,33 @@ function App() {
     const confirmar = window.confirm('¿Seguro que querés borrarlo de tu lista?');
     if (!confirmar) return;
 
-    await fetch(`${API_URL}/mi-lista/${id}`, { method: 'DELETE' });
+    await fetch(`${API_URL}/mi-lista/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
     await cargarLista();
   }
 
   async function cambiarEstado(id, nuevoEstado) {
     await fetch(`${API_URL}/mi-lista/${id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ estado: nuevoEstado }),
     });
     await cargarLista();
   }
 
-    async function cambiarEpisodio(item, delta) {
+  async function cambiarEpisodio(item, delta) {
     const nuevoEpisodio = item.episodio_actual + delta;
-
     if (nuevoEpisodio < 0) return;
     if (item.episodios && nuevoEpisodio > item.episodios) return;
-
-    await fetch(`${API_URL}/mi-lista/${item.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ episodio_actual: nuevoEpisodio }),
-    });
-    await cargarLista();
+    await actualizarEpisodio(item, nuevoEpisodio);
   }
 
-
-    async function actualizarEpisodio(item, valor) {
+  async function actualizarEpisodio(item, valor) {
     let nuevoEpisodio = parseInt(valor, 10);
 
     if (isNaN(nuevoEpisodio) || nuevoEpisodio < 0) nuevoEpisodio = 0;
@@ -108,10 +138,17 @@ function App() {
 
     await fetch(`${API_URL}/mi-lista/${item.id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ episodio_actual: nuevoEpisodio }),
     });
     await cargarLista();
+  }
+
+  if (!token) {
+    return <Auth onLogin={manejarLogin} />;
   }
 
   if (cargando) return <p>Cargando...</p>;
@@ -121,19 +158,25 @@ function App() {
 
   return (
     <div className="app">
-       <div className="topbar">
-        <h1>Mi lista de anime</h1>
-      <div className="buscador">
-        <input
-          type="text"
-          placeholder="Buscar anime..."
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && buscar()}
-        />
-        <button onClick={buscar}>{buscando ? 'Buscando...' : 'Buscar'}</button>
+      <div className="topbar">
+        <div className="topbar-header">
+          <h1>Mi lista de anime</h1>
+          <div className="usuario-info">
+            <span>{usuario?.nombre_usuario}</span>
+            <button onClick={cerrarSesion}>Salir</button>
+          </div>
+        </div>
+        <div className="buscador">
+          <input
+            type="text"
+            placeholder="Buscar anime..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && buscar()}
+          />
+          <button onClick={buscar}>{buscando ? 'Buscando...' : 'Buscar'}</button>
+        </div>
       </div>
-    </div>
 
       {resultados.length > 0 && (
         <>
@@ -170,7 +213,7 @@ function App() {
                 <div className={`card estado-${item.estado}`} key={item.id}>
                   <img src={item.imagen} alt={item.titulo} />
                   <h3>{item.titulo}</h3>
-                   <span className={`badge-estado badge-${item.estado}`}>
+                  <span className={`badge-estado badge-${item.estado}`}>
                     {ESTADOS.find((e) => e.value === item.estado)?.label}
                   </span>
                   <select
@@ -183,8 +226,7 @@ function App() {
                       </option>
                     ))}
                   </select>
-                  <p>
-                    <div className="episodios">
+                  <div className="episodios">
                     <button onClick={() => cambiarEpisodio(item, -1)}>-</button>
                     <input
                       type="number"
@@ -197,7 +239,6 @@ function App() {
                     <span>/ {item.episodios ?? '?'}</span>
                     <button onClick={() => cambiarEpisodio(item, 1)}>+</button>
                   </div>
-                  </p>
                   <button onClick={() => borrar(item.id)}>Borrar</button>
                 </div>
               ))}

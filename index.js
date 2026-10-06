@@ -8,7 +8,7 @@ import { verificarToken } from './middleware/auth.js';
 const app = express(); //const app = express() → creás la instancia de tu aplicación/servidor (pensalo como instanciar tu clase Startup en ASP.NET)
 app.use(cors());
 app.use(express.json());
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 
 

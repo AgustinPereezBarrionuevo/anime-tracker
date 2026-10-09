@@ -6,7 +6,13 @@ import jwt from 'jsonwebtoken';
 import { verificarToken } from './middleware/auth.js';
 
 const app = express(); //const app = express() → creás la instancia de tu aplicación/servidor (pensalo como instanciar tu clase Startup en ASP.NET)
-app.use(cors());
+
+const origenesPermitidos = [
+  'http://localhost:5173',
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+app.use(cors({ origin: origenesPermitidos }));
 app.use(express.json());
 const PORT = process.env.PORT || 3000;
 

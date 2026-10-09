@@ -163,7 +163,7 @@ function App() {
           <h1>Mi lista de anime</h1>
           <div className="usuario-info">
             <span>{usuario?.nombre_usuario}</span>
-            <button onClick={cerrarSesion}>Cerrar Sesion</button>
+            <button onClick={cerrarSesion}>Cerrar Sesión</button>
           </div>
         </div>
         <div className="buscador">

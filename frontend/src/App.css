@@ -193,7 +193,7 @@ h2 {
 }
 
 .badge-viendo::before { background: var(--c-viendo); }
-.badge-pendiente::before { background: var(--c-pendiente); }
+.badge-plan_to_watch::before { background: var(--c-pendiente); }
 .badge-completado::before { background: var(--c-completado); }
 .badge-dropeado::before { background: var(--c-dropeado); }
 
@@ -312,4 +312,9 @@ h2 {
   color: var(--vermilion);
   cursor: pointer;
   font-weight: 600;
+}
+
+.card .episodios button {
+  width: auto;
+  margin-top: 0;
 }
